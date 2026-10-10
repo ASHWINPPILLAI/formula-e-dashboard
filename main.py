@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -241,6 +241,11 @@ def _generate_chart(t3: float, t13: float, lc: float) -> bytes:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+@app.get("/")
+async def root():
+    """Redirect root to dashboard."""
+    return RedirectResponse(url="/dashboard")
 
 @app.get("/health")
 async def health() -> dict:
