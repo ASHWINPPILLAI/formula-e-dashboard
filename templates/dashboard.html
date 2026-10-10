@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Formula E Driver Performance Analyzer – Real-time pit-wall telemetry dashboard" />
+    <title>Formula E Driver Performance Dashboard</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Adding Syncopate for ultra-modern technical headers, keeping Rajdhani for data -->
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+
+    <!-- Import Map for pinned Three.js version and Addons -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://esm.sh/three@0.172.0",
+            "three/addons/": "https://esm.sh/three@0.172.0/examples/jsm/",
+            "chart.js/auto": "https://esm.sh/chart.js@4.4.1/auto"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<!-- Noise Overlay for textural realism -->
+<div class="noise-overlay"></div>
+
+<!-- 3D Canvas Background -->
+<canvas id="scene-canvas"></canvas>
+
+<!-- Top Navigation / Status Bar -->
+<header class="top-nav glass-bento">
+    <div class="nav-brand">
+        <span class="pulse-dot"></span>
+        <h1>FORMULA E <span class="fw-light">TELEMETRY</span></h1>
+    </div>
+    <div class="nav-status">
+        <span id="connection-status">LINK SECURE</span>
+    </div>
+</header>
+
+<main id="app">
+    <div class="bento-grid">
+        
+        <!-- BENTO ITEM 1: Telemetry Input (Spans Left Column) -->
+        <section class="bento-card input-section glass-bento">
+            <div class="card-header">
+                <h2>INBOUND DATA</h2>
+                <div class="header-line"></div>
+            </div>
+            
+            <div id="error-banner"></div>
+            <div id="sensor-fault-banner">⚠ SENSOR FAULT DETECTED</div>
+            
+            <form id="telemetry-form" autocomplete="off">
+                <div class="form-layout">
+                    <div class="input-row-split">
+                        <div class="field-box">
+                            <label for="driver_id">DRIVER_ID</label>
+                            <input id="driver_id" type="text" placeholder="e.g. VER01" required />
+                        </div>
+                        <div class="field-box">
+                            <label for="lap_number">LAP_NO</label>
+                            <input id="lap_number" type="number" min="1" value="1" required />
+                        </div>
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="slider-header">
+                            <label for="turn_3_regen_kw">T3 REGEN</label>
+                            <span class="value-display"><input id="turn_3_regen_kw" type="number" min="0" step="any" required /> kW</span>
+                        </div>
+                        <input id="turn_3_regen_kw_range" class="cyber-slider" type="range" min="0" max="800" step="1" value="0" />
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="slider-header">
+                            <label for="turn_13_regen_kw">T13 REGEN</label>
+                            <span class="value-display"><input id="turn_13_regen_kw" type="number" min="0" step="any" required /> kW</span>
+                        </div>
+                        <input id="turn_13_regen_kw_range" class="cyber-slider" type="range" min="0" max="800" step="1" value="0" />
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="slider-header">
+                            <label for="lift_coast_distance_meters">LIFT & COAST</label>
+                            <span class="value-display"><input id="lift_coast_distance_meters" type="number" min="0" step="any" required /> m</span>
+                        </div>
+                        <input id="lift_coast_distance_meters_range" class="cyber-slider" type="range" min="0" max="150" step="1" value="0" />
+                    </div>
+                </div>
+                
+                <button class="btn-submit magnetic-btn" type="submit" id="submit-btn">
+                    <span class="btn-text">INITIALIZE ANALYSIS</span>
+                    <span class="btn-glow"></span>
+                </button>
+            </form>
+        </section>
+
+        <!-- BENTO ITEM 2: Real-time Analysis (Center Large) -->
+        <section class="bento-card analysis-section glass-bento" id="results-panel">
+            <div class="card-header">
+                <h2>AI EVALUATION</h2>
+                <div class="header-line"></div>
+            </div>
+
+            <div id="loading-indicator" class="loading-overlay">
+                <div class="cyber-spinner"></div>
+                <p>PROCESSING DATA MATRIX</p>
+            </div>
+
+            <div class="score-container">
+                <div class="score-ring-wrapper">
+                    <svg class="score-ring" viewBox="0 0 100 100">
+                        <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
+                        <circle class="ring-progress" cx="50" cy="50" r="45" id="ring-path"></circle>
+                    </svg>
+                    <div class="score-value" id="score-badge">--</div>
+                </div>
+                <div class="rating-badge" id="rating-label">AWAITING TELEMETRY</div>
+            </div>
+
+            <div class="feedback-terminal">
+                <div class="terminal-header">
+                    <span>> SYSTEM_FEEDBACK</span>
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                </div>
+                <ul class="feedback-list" id="feedback-list" aria-live="polite">
+                    <li class="awaiting">Standby for telemetry input...</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- BENTO ITEM 3: Data Visualization (Right Column) -->
+        <section class="bento-card chart-section glass-bento" id="chart-panel">
+            <div class="card-header">
+                <h2>ENERGY PROFILE</h2>
+                <div class="header-line"></div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="chart-canvas"></canvas>
+            </div>
+        </section>
+
+        <!-- BENTO ITEM 4: Media Strip (Bottom spanning) -->
+        <section class="bento-card media-section glass-bento">
+            <div class="strip-grid">
+                <div class="strip-item"><img src="/static/img/hero.jpg" alt="Track action" /></div>
+                <div class="strip-item"><img src="/static/img/telemetry.jpg" alt="Cockpit HUD" /></div>
+                <div class="strip-item"><img src="/static/img/pitwall.jpg" alt="Pitwall" /></div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
